@@ -1,19 +1,25 @@
 # Comparação Medições Acelerometro e dynaloggers
 
-# Carregar informação dos Dynaloggers e Acelerometro
- 
-# Calcular o RMS de cada um
+# %% Bibliotecas
+import pandas as pd
 
-# Plottar Cada Dynalogger no tempo
+# %% Carregar informação dos Dynaloggers e Acelerometro
+#print(os.getcwd())
+data = pd.read_csv('./teste.csv')
 
-# FFT de Tudo
 
-# Nivel de Vibração
+# %% Calcular o RMS de cada um
 
-# Densidade Espectral Ruido Branco (PSD)
+# %% Plottar Cada Dynalogger no tempo
 
-# Desndidade Espectral dos Dynaloggers e Accelerometro
+# %% FFT de Tudo
 
-# Plottar o espectro (Frequência)
+# %% Nivel de Vibração
 
-# Plottar a Desnsidade Espectral
+# %% Densidade Espectral Ruido Branco (PSD)
+
+# %% Desndidade Espectral dos Dynaloggers e Accelerometro
+
+# %% Plottar o espectro (Frequência)
+
+# %% Plottar a Desnsidade Espectral
