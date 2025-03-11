@@ -4,6 +4,7 @@
 import os
 import pandas as pd
 import numpy as np
+import plotly.graph_objects as go
 
 # %% Opções do Pandas
 
@@ -41,6 +42,14 @@ acc_rms = rms(acc_data['Z'].to_numpy())
 
 
 # %% Plottar Cada Dynalogger no tempo
+fig = go.Figure(
+    data=[go.Bar(y=[2, 1, 3])],
+    layout_title_text="A Figure Displayed with fig.show()"
+)
+fig.show(renderer='browser')
+fig.write_html("Plots/teste.html")
+fig.write_image("Plots/teste.png")
+
 
 # %% FFT de Tudo
 
