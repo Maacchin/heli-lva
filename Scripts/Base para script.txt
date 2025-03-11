@@ -1,0 +1,158 @@
+%% comaparacao medicoes aceletrometro e dynaloggers
+clear all
+clc
+close all
+%% 1 Load dyna Data
+[Dyna_1] = xlsread('C:\Users\VPAEGLE\OneDrive - azureford\master_deg\2_teste_automovel\WaveformData\RuidoBrancoDynaSquadriga\waveform_Pedal_260225-1609.csv');   
+[Dyna_2] = xlsread('C:\Users\VPAEGLE\OneDrive - azureford\master_deg\2_teste_automovel\WaveformData\RuidoBrancoDynaSquadriga\waveform_Direito_260225-1544.csv');   
+[Dyna_3] = xlsread('C:\Users\VPAEGLE\OneDrive - azureford\master_deg\2_teste_automovel\WaveformData\RuidoBrancoDynaSquadriga\waveform_Motor_260225-1539.csv');
+[Dyna_4] = xlsread('C:\Users\VPAEGLE\OneDrive - azureford\master_deg\2_teste_automovel\WaveformData\RuidoBrancoDynaSquadriga\waveform_Esquerdo_260225-1549.csv');   
+%% [Accelerometer]    = xlsread('C:\Users\VPAEGLE\OneDrive - azureford\master_deg\2_teste_automovel\WaveformData\RuidoBrancoDynaSquadriga\accelerometer_356A45.csv');   
+
+Dyna_1_rms = rms(Dyna_1(:,4));
+Dyna_2_rms = rms(Dyna_2(:,4));
+Dyna_3_rms = rms(Dyna_3(:,4));
+Dyna_4_rms = rms(Dyna_4(:,4));
+Accelerometer_rms    = rms(Accelerometer(:,4));
+Accelerometer_medicao_2_rms = rms(Accelerometer(:,7));
+
+
+%%  2. Plot Dyna no tempo
+ymax=3;
+xmax=26;
+figure('Position', [100 50 800 900])
+subplot(5,1,1)
+plot(Dyna_1(:,1),Dyna_1(:,4), 'Color',[0 0 1])
+yline(Dyna_1_rms,'--','RMS = '+string(Dyna_1_rms),'LineWidth',2,'Color',[1 0 0]);
+grid on
+legend('Dyna 1 (HF+) Fs = 3200 Hz','Location','southwest')
+xlim([0 xmax])
+ylim([-ymax ymax])
+ylabel('Acc [g]')
+xlabel('Time [s]')
+title('Time History - white noise')
+
+subplot(5,1,2)
+plot(Dyna_2(:,1),Dyna_2(:,4),'Color',[0 1 1])
+yline(Dyna_2_rms,'--','RMS = '+string(Dyna_2_rms),'LineWidth',2,'Color',[1 0 0]);
+grid on
+legend('Dyna 2 (TcAs) Fs = 2520 Hz','Location','southwest')
+xlim([0 xmax])
+ylim([-ymax ymax])
+ylabel('Acc [g]')
+xlabel('Time [s]')
+
+subplot(5,1,3)
+plot(Dyna_3(:,1),Dyna_3(:,4), 'Color',[0 1 0])
+yline(Dyna_3_rms,'--','RMS = '+string(Dyna_3_rms),'LineWidth',2,'Color',[1 0 0]);
+grid on
+legend('Dyna 3 (TcAs) Fs = 2520 Hz','Location','southwest')
+xlim([0 xmax])
+ylim([-ymax ymax])
+ylabel('Acc [g]')
+xlabel('Time [s]')
+
+subplot(5,1,4)
+plot(Dyna_4(:,1),Dyna_4(:,4), 'Color',[1 1 0])
+yline(Dyna_4_rms,'--','RMS = '+string(Dyna_4_rms),'LineWidth',2,'Color',[1 0 0]);
+grid on
+legend('Dyna 4 (TcAs) Fs = 2520 Hz','Location','southwest')
+xlim([0 xmax])
+ylim([-ymax ymax])
+ylabel('Acc [g]')
+xlabel('Time [s]')
+
+subplot(5,1,5)
+plot(Accelerometer(:,1),Accelerometer(:,4), 'Color',[0 0 0])
+yline(Accelerometer_rms,'--','RMS = '+string(Accelerometer_rms),'LineWidth',2,'Color',[1 0 0]);
+grid on
+legend('Accelerometer Fs = 2560 Hz','Location','southwest')
+xlim([0 xmax])
+ylim([-ymax ymax])
+ylabel('Acc [g]')
+xlabel('Time [s]')
+
+
+%% Tira a FFT
+[Specrtum_Accelerometer,Mag_Accelerometer,Pha_Accelerometer,freq_Accelerometer] = fftTimetoFreq2(Accelerometer(:,4),Accelerometer(end,1),length(Accelerometer(:,1)));
+[Specrtum_Dyna_1,Mag_Dyna_1,Pha_Dyna_1,freq_1] = fftTimetoFreq2(Dyna_1(:,4),Dyna_1(end,1),length(Dyna_1));
+[Specrtum_Dyna_2,Mag_Dyna_2,Pha_Dyna_2,freq_2] = fftTimetoFreq2(Dyna_2(:,4),Dyna_2(end,1),length(Dyna_2));
+[Specrtum_Dyna_3,Mag_Dyna_3,Pha_Dyna_3,freq_3] = fftTimetoFreq2(Dyna_3(:,4),Dyna_3(end,1),length(Dyna_3));
+[Specrtum_Dyna_4,Mag_Dyna_4,Pha_Dyna_4,freq_4] = fftTimetoFreq2(Dyna_4(:,4),Dyna_4(end,1),length(Dyna_4));
+ 
+%% Nivel de vibracao
+       a_0 = (1e-5);
+       NV_Accelerometer = 20*log10(Mag_Accelerometer*9.8/a_0);
+       NV_Dyna_1 = 20*log10(Mag_Dyna_1*9.8/a_0);
+       NV_Dyna_2 = 20*log10(Mag_Dyna_2*9.8/a_0);
+       NV_Dyna_3 = 20*log10(Mag_Dyna_3*9.8/a_0);
+       NV_Dyna_4 = 20*log10(Mag_Dyna_4*9.8/a_0);
+	   
+% Densidade espectral ruido branco
+f1=3; f2 =1280;
+a_rms = Accelerometer_rms;
+S_a = a_rms^2/(f2-f1);
+S_a_sqrt = sqrt(S_a); % g/sqrt(Hz);
+delta_f_Acc = 1/Accelerometer(end,1);
+FFT_Accelerometer_WN =sqrt(S_a*delta_f_Acc);
+NV_white = 20*log10(FFT_Accelerometer_WN*9.8/a_0);
+
+%% Calcula a PSD
+nsc = floor(length(Dyna_1(:,1))/3);
+nov = floor(nsc/2); % 50% de overlap
+nfft = max(256,2^nextpow2(nsc));
+[PSD_Accelerometer,freq_Accelerometer_psd] = pwelch(Accelerometer(:,4), hamming(nsc),nov, nfft, 2560);
+[PSD_Dyna_1,freq_1_psd] = pwelch(Dyna_1(:,4), hamming(nsc),nov, nfft, 3200);
+[PSD_Dyna_2,freq_2_psd] = pwelch(Dyna_2(:,4), hamming(nsc),nov, nfft, 2520);
+[PSD_Dyna_3,freq_3_psd] = pwelch(Dyna_3(:,4), hamming(nsc),nov, nfft, 2520);
+[PSD_Dyna_4,freq_4_psd] = pwelch(Dyna_4(:,4), hamming(nsc),nov, nfft, 2520);
+
+
+%% Plot Spectrum (Frequência)
+xmin = 5e-1; xmax = 2e3;
+figure('Position', [800 50 800 900])
+subplot(2,1,1)
+semilogx(freq_1,NV_Dyna_1,'Color',[0 0 1]);
+hold on
+semilogx(freq_2,NV_Dyna_2,'Color',[0 1 1]);
+hold on
+semilogx(freq_3,NV_Dyna_3,'Color',[0 1 0]);
+hold on
+semilogx(freq_4,NV_Dyna_4,'Color',[1 1 0]);
+hold on
+semilogx(freq_Accelerometer,NV_Accelerometer,'Color',[0 0 0]);
+
+yline(46,'--','46 dB (2e-4 g)','LineWidth',1, 'LabelHorizontalAlignment','left','LabelVerticalAlignment','bottom','Color',[1 0 0])
+yline(NV_white,'--','NV expected for 0.94g rms white noise','LineWidth',1, 'LabelHorizontalAlignment','left','LabelVerticalAlignment','top',Color=[1 0 0])
+grid on
+ylabel('Acceleration [dB]')
+xlabel('Freq [Hz]')
+xlim([xmin xmax])
+
+legend('Dyna 1 (HF+)  Fs = 3200 Hz','Dyna 2 (TcAs) Fs = 2520 Hz','Dyna 3 (TcAs) Fs = 2520 Hz', ...
+       'Dyna 4 (TcAs) Fs = 2520 Hz','Accelerometer Fs = 2560 Hz', ...
+       'Location','southeast')	   	   
+title('Vibration Level')
+
+
+% Plot do PSD
+subplot(2,1,2)
+loglog(freq_1_psd,PSD_Dyna_1,'Color',[0 0 1]);
+hold on
+loglog(freq_2_psd,PSD_Dyna_2,'Color',[0 1 1]);
+hold on
+loglog(freq_3_psd,PSD_Dyna_3,'Color',[0 1 0]);
+hold on
+loglog(freq_4_psd,PSD_Dyna_4,'Color',[1 1 0]);
+hold on
+loglog(freq_Accelerometer_psd,PSD_Accelerometer,'Color',[0 0 0]);
+hold on
+
+yline((220e-6*10)^2,'--','Densidade de ruido (TcAs) = (220ug)^2','LineWidth',1,'color', [0 0 0])
+yline((75e-6*10)^2,'--','Desidade de ruido (HF+) = (75ug)^2','LineWidth',1,'color', [0 0 0])
+yline(S_a,'--','PSD expected for 0.94g rms white noise','LineWidth',1, 'LabelHorizontalAlignment','left','LabelVerticalAlignment','top',Color=[1 0 0])
+grid on
+ylabel('Amplitude [g^2/Hz]')
+xlabel('Freq [Hz]')
+xlim([xmin xmax])
+title('PSD')
