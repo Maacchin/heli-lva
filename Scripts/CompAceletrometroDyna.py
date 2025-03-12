@@ -5,6 +5,7 @@ import os
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import plotly.express as px
 
 # %% Opções do Pandas
 
@@ -13,12 +14,12 @@ pd.set_option('display.max_columns', None)
 
 # %% Funções
 def rms(array):
-    return(np.sqrt(np.mean(np.square(array))))
+    return(np.sqrt(np.mean(array**2)))
 
 # %% Mudar para o CWD (Current Working directory) correto
-path = "C:\\Users\MartinR\\Desktop\\Projetos\\heli-lva\\Scripts"
-os.chdir(path)
-os.listdir()
+#path = "/home/martinaise/Projetos/heli-lva/Scripts"
+#os.chdir(path)
+#os.listdir()
 
 # %% Carregar informação dos Dynaloggers e Acelerometro
 dyna1_data = pd.read_csv('waveform_Pedal_090325-1326.csv', sep=';')
@@ -41,14 +42,40 @@ dyna4_rms = rms(dyna4_data['Vertical'].to_numpy())
 acc_rms = rms(acc_data['Z'].to_numpy())
 
 
-# %% Plottar Cada Dynalogger no tempo
-fig = go.Figure(
-    data=[go.Bar(y=[2, 1, 3])],
-    layout_title_text="A Figure Displayed with fig.show()"
+# %% Suavização do Plot e Pré processamento
+
+dyna1_data['Vertical_Suave'] = dyna1_data['Vertical'].rolling(window=50, center = True).mean()
+dyna2_data['Vertical_Suave'] = dyna2_data['Vertical'].rolling(window=50, center = True).mean()
+dyna3_data['Vertical_Suave'] = dyna3_data['Vertical'].rolling(window=50, center = True).mean()
+dyna4_data['Vertical_Suave'] = dyna4_data['Vertical'].rolling(window=50, center = True).mean()
+
+dyna1_data['Sinal'] = 'S1'
+dyna2_data['Sinal'] = 'S2'
+dyna3_data['Sinal'] = 'S3'
+dyna4_data['Sinal'] = 'S4'
+
+
+dynaAll_data = pd.concat([dyna1_data, dyna2_data, dyna3_data, dyna4_data], ignore_index=True)
+
+
+# %% Plottar Cada Dynalogger no tempo (CÓDIGO TEMPORÁRIO)
+
+
+
+fig = px.line(dynaAll_data, x='Time (s)', y="Vertical_Suave", color="Sinal")
+
+
+# Formatação do gráfico
+fig.update_layout(
+     xaxis=dict(showgrid=True), 
+     yaxis=dict(showgrid=True)
 )
+
+# Display
 fig.show(renderer='browser')
-fig.write_html("Plots/teste.html")
-fig.write_image("Plots/teste.png")
+fig.write_html("Plots/Depois.html")
+fig.write_image("Plots/Depois.png")
+
 
 
 # %% FFT de Tudo
