@@ -4,8 +4,10 @@
 import os
 import pandas as pd
 import numpy as np
+import scipy as sc
 import plotly.graph_objects as go
 import plotly.express as px
+from datetime import datetime
 
 # %% Opções do Pandas
 
@@ -35,35 +37,34 @@ acc_data = acc_data.rename(columns=lambda x: x.strip())
 
 
 # %% Calcular o RMS de cada um
-dyna1_rms = rms(dyna1_data['Vertical'].to_numpy())
-dyna2_rms = rms(dyna2_data['Vertical'].to_numpy())
-dyna3_rms = rms(dyna3_data['Vertical'].to_numpy())
-dyna4_rms = rms(dyna4_data['Vertical'].to_numpy())
-acc_rms = rms(acc_data['Z'].to_numpy())
+dyna1_data.at[0, 'RMS'] = rms(dyna1_data['Vertical'].to_numpy())
+dyna2_data.at[0, 'RMS'] = rms(dyna2_data['Vertical'].to_numpy())
+dyna3_data.at[0, 'RMS'] = rms(dyna3_data['Vertical'].to_numpy())
+dyna4_data.at[0, 'RMS'] = rms(dyna4_data['Vertical'].to_numpy())
+acc_data.at[0, 'RMS'] = rms(acc_data['Z'].to_numpy())
 
 
 # %% Suavização do Plot e Pré processamento
 
+# Temporário, perguntar para vini sobre
 dyna1_data['Vertical_Suave'] = dyna1_data['Vertical'].rolling(window=50, center = True).mean()
 dyna2_data['Vertical_Suave'] = dyna2_data['Vertical'].rolling(window=50, center = True).mean()
 dyna3_data['Vertical_Suave'] = dyna3_data['Vertical'].rolling(window=50, center = True).mean()
 dyna4_data['Vertical_Suave'] = dyna4_data['Vertical'].rolling(window=50, center = True).mean()
 
+# Diferenciação dos Sinais
 dyna1_data['Sinal'] = 'S1'
 dyna2_data['Sinal'] = 'S2'
 dyna3_data['Sinal'] = 'S3'
 dyna4_data['Sinal'] = 'S4'
 
-
+# Junção de todos os sinais em um DataFrame só
 dynaAll_data = pd.concat([dyna1_data, dyna2_data, dyna3_data, dyna4_data], ignore_index=True)
 
 
 # %% Plottar Cada Dynalogger no tempo (CÓDIGO TEMPORÁRIO)
 
-
-
 fig = px.line(dynaAll_data, x='Time (s)', y="Vertical_Suave", color="Sinal")
-
 
 # Formatação do gráfico
 fig.update_layout(
@@ -73,12 +74,21 @@ fig.update_layout(
 
 # Display
 fig.show(renderer='browser')
-fig.write_html("Plots/Depois.html")
-fig.write_image("Plots/Depois.png")
+
+# Salvar
+figure_name = datetime.now()
+figure_name = figure_name.strftime("Plot %d-%m-%Y %Hh-%Mm-%Ss")
+fig.write_html(f"Plots\{figure_name}.html")
+fig.write_image(f"Plots\{figure_name}.png")
 
 
 
 # %% FFT de Tudo
+
+# 1. Sampling Rate
+# 2. Perform the FFT and get the magnitude
+# 3. Only keep the positive frequencies (FFT is symmetric)
+
 
 # %% Nivel de Vibração
 
@@ -86,6 +96,22 @@ fig.write_image("Plots/Depois.png")
 
 # %% Densidade Espectral dos Dynaloggers e Accelerometro
 
-# %% Plottar o espectro (Frequência)
+# %% Plottar o espectro (Frequência) (CÓDIGO TEMPORÁRIO)
+fig = go.Figure()
+
+# Plot the FFT magnitude vs frequency
+fig.add_trace(go.Scatter(x=positive_frequencies, y=positive_fft_magnitude,
+                         mode='lines', name='FFT Magnitude', line=dict(color='blue')))
+
+# Add labels and title
+fig.update_layout(
+    title='FFT of Accelerometer Data',
+    xaxis_title='Frequency (Hz)',
+    yaxis_title='Magnitude',
+    template='plotly_dark'
+)
+
+# Show the plot
+fig.show(renderer='browser')
 
 # %% Plottar a Desnsidade Espectral
