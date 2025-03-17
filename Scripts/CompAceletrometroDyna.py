@@ -52,6 +52,8 @@ dyna2_data['Vertical_Suave'] = dyna2_data['Vertical'].rolling(window=50, center 
 dyna3_data['Vertical_Suave'] = dyna3_data['Vertical'].rolling(window=50, center = True).mean()
 dyna4_data['Vertical_Suave'] = dyna4_data['Vertical'].rolling(window=50, center = True).mean()
 
+# Hamming
+
 # Diferenciação dos Sinais
 dyna1_data['Sinal'] = 'S1'
 dyna2_data['Sinal'] = 'S2'
@@ -97,21 +99,30 @@ fig.write_image(f"Plots\{figure_name}.png")
 # %% Densidade Espectral dos Dynaloggers e Accelerometro
 
 # %% Plottar o espectro (Frequência) (CÓDIGO TEMPORÁRIO)
-fig = go.Figure()
 
-# Plot the FFT magnitude vs frequency
-fig.add_trace(go.Scatter(x=positive_frequencies, y=positive_fft_magnitude,
-                         mode='lines', name='FFT Magnitude', line=dict(color='blue')))
-
-# Add labels and title
-fig.update_layout(
-    title='FFT of Accelerometer Data',
-    xaxis_title='Frequency (Hz)',
-    yaxis_title='Magnitude',
-    template='plotly_dark'
-)
-
-# Show the plot
-fig.show(renderer='browser')
 
 # %% Plottar a Desnsidade Espectral
+
+# %% Caixa de areia
+import numpy as np
+import pandas as pd
+import plotly.express as px
+from numpy.fft import fft, fftshift
+
+window = np.hamming(51)
+fig = px.line(window, title="Hamming").update_layout(
+    xaxis_title="Samples", yaxis_title="Amplitude"
+    )
+
+fig.show(renderer='browser')
+
+Amp = fft(window, 2048) / 25.5
+mag = np.abs(fftshift(Amp))
+freq = np.linspace(-0,5, 0.5, len(Amp))
+response = 20 * np.log10(mag)
+response = np.clip(response, -100, 100)
+
+df = pd.DataFrame([])
+
+    
+
