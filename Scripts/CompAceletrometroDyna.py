@@ -47,57 +47,36 @@ acc_data.at[0, 'RMS'] = rms(acc_data['Z'].to_numpy())
 
 # %% Suavização do Plot e Pré processamento
 
+# Tentar Hamming
+
 # Parametros do filtro (Lowpass)
-cutoff_freq = 100 # Cuttof frequency in Hz
-fs = 1000 # Sampling rate in Hz
+cutoff_freq = 100 # Frequência de corte em Hz
+fs = 1000 # Taxa de amostragem em Hz
 nyq = 0.5 * fs
-order = 4 
+order = 4 # Ordem do filtro
 normal_cutoff = cutoff_freq / nyq
 b,a = sc.signal.butter(order, normal_cutoff, btype='lowpass')
 
-
-# Temporário, perguntar para vini sobre
-dyna1_data['Vertical_Suave'] = dyna1_data['Vertical'].rolling(window=50, center = True).mean()
-dyna2_data['Vertical_Suave'] = dyna2_data['Vertical'].rolling(window=50, center = True).mean()
-dyna3_data['Vertical_Suave'] = dyna3_data['Vertical'].rolling(window=50, center = True).mean()
-dyna4_data['Vertical_Suave'] = dyna4_data['Vertical'].rolling(window=50, center = True).mean()
-
-# %%
-
-t = dyna1_data['Time (s)']
-acc = dyna1_data['Vertical']
-
-filtered_data = sc.signal.filtfilt(b, a, acc)
-
-sinal = pd.DataFrame({ 'Time':t, 'Acc':acc })
-sinal['Data'] = 'A'
-
-sinal_filtrado = pd.DataFrame({ 'Time':t, 'Acc':filtered_data })
-sinal_filtrado['Data'] = 'B'
-
-all_signal = pd.concat([sinal, sinal_filtrado], ignore_index=True)
-
-fig = px.line(all_signal, x="Time", y="Acc", color='Data')
-fig.show(renderer='browser')
-
-
-
-
-# %% Hamming
+# Aplicação do filtro
+dyna1_data['Vertical_filtrado'] = sc.signal.filtfilt(b, a, dyna1_data['Vertical'])
+dyna2_data['Vertical_filtrado'] = sc.signal.filtfilt(b, a, dyna2_data['Vertical'])
+dyna3_data['Vertical_filtrado'] = sc.signal.filtfilt(b, a, dyna3_data['Vertical'])
+dyna4_data['Vertical_filtrado'] = sc.signal.filtfilt(b, a, dyna4_data['Vertical'])
+#acc_data['Z_filtrado']          = sc.signal.filtfilt(b, a, acc_data['Z'])
 
 # Diferenciação dos Sinais
-dyna1_data['Sinal'] = 'S1'
-dyna2_data['Sinal'] = 'S2'
-dyna3_data['Sinal'] = 'S3'
-dyna4_data['Sinal'] = 'S4'
+dyna1_data['Sinal'] = 'D1'
+dyna2_data['Sinal'] = 'D2'
+dyna3_data['Sinal'] = 'D3'
+dyna4_data['Sinal'] = 'D4'
+#acc_data['Sinal']   = 'Acc'
 
 # Junção de todos os sinais em um DataFrame só
 dynaAll_data = pd.concat([dyna1_data, dyna2_data, dyna3_data, dyna4_data], ignore_index=True)
 
 
 # %% Plottar Cada Dynalogger no tempo (CÓDIGO TEMPORÁRIO)
-
-fig = px.line(dynaAll_data, x='Time (s)', y="Vertical_Suave", color="Sinal")
+fig = px.line(dynaAll_data, x='Time (s)', y="Vertical_filtrado", color="Sinal")
 
 # Formatação do gráfico
 fig.update_layout(
@@ -115,23 +94,34 @@ fig.write_html(f"Plots\{figure_name}.html")
 fig.write_image(f"Plots\{figure_name}.png")
 
 
+# %% Limpeza
+del(a)
+del(b)
+del(cutoff_freq)
+del(fig)
+del(figure_name)
+del(fs)
+del(normal_cutoff)
+del(nyq)
+del(order)
+
 
 # %% FFT de Tudo
-signal = dyna1_data['Vertical'].values
-fft_signal = np.fft.fft(signal)
+#signal = dyna1_data['Vertical'].values
+#fft_signal = np.fft.fft(signal)
 
 # 1. Sampling Rate
-sampling_rate = 1 / (dyna1_data['Time (s)'][1] - dyna1_data['Time (s)'][0])
+#sampling_rate = 1 / (dyna1_data['Time (s)'][1] - dyna1_data['Time (s)'][0])
 
-freqs = np.fft.fftfreq(len(signal), d=1/sampling_rate)
+#freqs = np.fft.fftfreq(len(signal), d=1/sampling_rate)
 
-fft_magnitude = np.abs(fft_signal[:len(fft_signal)//2])
-freqs = freqs[:len(freqs//2)]
+#fft_magnitude = np.abs(fft_signal[:len(fft_signal)//2])
+#freqs = freqs[:len(freqs//2)]
 
-fft_dataframe = pd.DataFrame({'X':freqs, 'Y': fft_magnitude})
+#fft_dataframe = pd.DataFrame({'X':freqs, 'Y': fft_magnitude})
 
-fig_fft= px.line(fft_dataframe, title="A")
-fig_fft.show(renderer='browser')
+#fig_fft= px.line(fft_dataframe, title="A")
+#fig_fft.show(renderer='browser')
 
 # 2. Perform the FFT and get the magnitude
 # 3. Only keep the positive frequencies (FFT is symmetric)
