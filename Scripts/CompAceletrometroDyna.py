@@ -119,7 +119,7 @@ del(nyq)
 del(order)
 
 
-# %% FFT de Tudo
+# %% FFT
 signal = dyna1_data['Vertical'].values
 fft_esp = np.fft.fft(signal)
 
@@ -147,11 +147,9 @@ fft_dataframe = pd.DataFrame({'X':freqs, 'Y': fft_magnitude})
 fig_fft= px.line(fft_dataframe, x='X', y='Y', title="FFT do Dyna 1", log_y=True)
 fig_fft.show(renderer='browser')
 
-# 2. Perform the FFT and get the magnitude
-# 3. Only keep the positive frequencies (FFT is symmetric)
 
 
-# %% Nivel de Vibração
+# %% Plot Nivel de Vibração
 dyna1_nv = nv(fft_magnitude)
 
 NVporFreq = pd.DataFrame({'Freqs': freqs, 'NV': dyna1_nv })
@@ -160,13 +158,15 @@ fig_vibr = px.line(NVporFreq, x='Freqs', y='NV', title='NV Dyna1', log_x=True)
 
 fig_vibr.show(renderer='browser')
 
+figure_name = datetime.now()
+figure_name = figure_name.strftime("Plot(NV) %d-%m-%Y %Hh-%Mm-%Ss")
+fig_vibr.write_html(f"Plots\{figure_name}.html")
+fig_vibr.write_image(f"Plots\{figure_name}.png")
 
 # %% Densidade Espectral Ruido Branco (PSD)
-
 # Usar welch com scipy
 
 # %% Densidade Espectral dos Dynaloggers e Accelerometro
-
 
 # %% Plottar a Desnsidade Espectral
 
