@@ -19,16 +19,29 @@ pd.set_option('display.max_columns', None)
 def rms(array):
     return(np.sqrt(np.mean(array**2)))
 
+
+def nv(fft_magnitude):
+    nv_vibração = []
+    
+    fft_magnitude_ms = fft_magnitude * 10
+    valor_ref = pow(10, -5)
+    
+    for i in range(0, len(fft_magnitude_ms)):
+       a = fft_magnitude_ms[i] / valor_ref
+       nv_vibração.append(20 * np.log10(a))
+                       
+    return nv_vibração
+
 # %% Mudar para o CWD (Current Working directory) correto
 path = r"C:\Users\MartinR\Desktop\Projetos\heli-lva\Scripts"
 os.chdir(path)
 os.listdir()
 
 # %% Carregar informação dos Dynaloggers e Acelerometro
-dyna1_data = pd.read_csv('Medições/waveform_Pedal_090325-1326.csv', sep=';')
-dyna2_data = pd.read_csv('Medições/waveform_Direito_090325-1417.csv', sep=';')
-dyna3_data = pd.read_csv('Medições/waveform_Motor_090325-1423.csv', sep=';')
-dyna4_data = pd.read_csv('Medições/waveform_Esquerdo_090325-1643.csv', sep=';')
+dyna1_data = pd.read_csv('Medições/waveform_Pedal_090325-1343.csv', sep=';')
+dyna2_data = pd.read_csv('Medições/waveform_Direito_090325-1420.csv', sep=';')
+dyna3_data = pd.read_csv('Medições/waveform_Motor_090325-1426.csv', sep=';')
+dyna4_data = pd.read_csv('Medições/waveform_Esquerdo_090325-1647.csv', sep=';')
 
 acc_data = pd.read_csv('Medições/accelerometer_356A45.csv', sep=';', header=0)
 # Limpando colunas vazias
@@ -76,7 +89,7 @@ dynaAll_data = pd.concat([dyna1_data, dyna2_data, dyna3_data, dyna4_data], ignor
 
 
 # %% Plottar Cada Dynalogger no tempo (CÓDIGO TEMPORÁRIO)
-fig = px.line(dynaAll_data, x='Time (s)', y="Vertical_filtrado", color="Sinal")
+fig = px.line(dynaAll_data, x='Time (s)', y="Vertical_filtrado", color="Sinal", title="Histórico temporal tudo")
 
 # Formatação do gráfico
 fig.update_layout(
@@ -107,27 +120,46 @@ del(order)
 
 
 # %% FFT de Tudo
-#signal = dyna1_data['Vertical'].values
-#fft_signal = np.fft.fft(signal)
+signal = dyna1_data['Vertical'].values
+fft_esp = np.fft.fft(signal)
 
-# 1. Sampling Rate
-#sampling_rate = 1 / (dyna1_data['Time (s)'][1] - dyna1_data['Time (s)'][0])
+# 1. Sampling Rate ()
+sampling_rate = 1 / (dyna1_data['Time (s)'][1] - dyna1_data['Time (s)'][0])
 
-#freqs = np.fft.fftfreq(len(signal), d=1/sampling_rate)
+freqs = np.fft.fftfreq(len(signal), d=1/sampling_rate)
 
-#fft_magnitude = np.abs(fft_signal[:len(fft_signal)//2])
-#freqs = freqs[:len(freqs//2)]
+# Escalamento
+tamanho_metade = len(dyna1_data['Time (s)']) / 2
+fft_esp_escalada = []
+for i in range(0, len(fft_esp)):
+    fft_esp_escalada.append(fft_esp[i] / tamanho_metade ) 
 
-#fft_dataframe = pd.DataFrame({'X':freqs, 'Y': fft_magnitude})
 
-#fig_fft= px.line(fft_dataframe, title="A")
-#fig_fft.show(renderer='browser')
+fft_magnitude = np.abs(fft_esp_escalada[:len(fft_esp_escalada)//2])
+fft_magnitude = fft_magnitude[1:]
+
+
+freqs = freqs[:len(freqs)//2]
+freqs = freqs[1:]
+
+fft_dataframe = pd.DataFrame({'X':freqs, 'Y': fft_magnitude})
+
+fig_fft= px.line(fft_dataframe, x='X', y='Y', title="FFT do Dyna 1", log_y=True)
+fig_fft.show(renderer='browser')
 
 # 2. Perform the FFT and get the magnitude
 # 3. Only keep the positive frequencies (FFT is symmetric)
 
 
 # %% Nivel de Vibração
+dyna1_nv = nv(fft_magnitude)
+
+NVporFreq = pd.DataFrame({'Freqs': freqs, 'NV': dyna1_nv })
+
+fig_vibr = px.line(NVporFreq, x='Freqs', y='NV', title='NV Dyna1', log_x=True)
+
+fig_vibr.show(renderer='browser')
+
 
 # %% Densidade Espectral Ruido Branco (PSD)
 
@@ -135,11 +167,8 @@ del(order)
 
 # %% Densidade Espectral dos Dynaloggers e Accelerometro
 
-# %% Plottar o espectro (Frequência) (CÓDIGO TEMPORÁRIO)
-
 
 # %% Plottar a Desnsidade Espectral
 
-# %% Caixa de areia
 
 
