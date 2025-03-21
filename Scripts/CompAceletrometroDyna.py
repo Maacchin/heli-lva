@@ -32,8 +32,37 @@ def nv(fft_magnitude):
                        
     return nv_vibração
 
+
+def fft_minha(input_data):
+    signal = input_data['Vertical'].values
+    fft_esc = np.fft.fft(signal)
+    
+    # Sampling rate
+    sampling_rate = 1 /  (input_data['Time (s)'][1] - input_data['Time (s)'][0])
+    
+    # Frequências
+    freqs = np.fft.fftfreq(len(signal), d=1/sampling_rate)
+    
+    # Escalamento
+    tamanho_metade = len(input_data['Time (s)']) /2
+    fft_esc_escalado = []
+    for i in range(0, len(fft_esc)):
+        fft_esc_escalado.append(fft_esc[i] / tamanho_metade)
+        
+    # Magnitude
+    fft_magnitude = np.abs(fft_esc_escalado[:len(fft_esc_escalado)//2])
+    fft_magnitude = fft_magnitude[1:]
+    
+
+    freqs = freqs[:len(freqs)//2]
+    freqs = freqs[1:]
+    
+    #fft_dataframe = pd.DataFrame({'X':freqs, 'Y': fft_magnitude})
+    return freqs, fft_magnitude, fft_esc_escalado
+
 # %% Mudar para o CWD (Current Working directory) correto
-path = r"C:\Users\MartinR\Desktop\Projetos\heli-lva\Scripts"
+#path = r"C:\Users\MartinR\Desktop\Projetos\heli-lva\Scripts"
+path = r"/home/martinaise/Projetos/heli-lva/Scripts"
 os.chdir(path)
 os.listdir()
 
@@ -49,13 +78,19 @@ acc_data = acc_data.loc[:, ~acc_data.columns.str.contains('^Unnamed')]
 # Removendo espaço em branco dos headers
 acc_data = acc_data.rename(columns=lambda x: x.strip())
 
+# Removendo medições extras
+acc_data = acc_data.drop(['X1', 'Y1', 'Z1'], axis='columns')
+
+# Colocando no mesmo formato dos dynaloggers
+acc_data = acc_data.rename(columns={"Time": "Time (s)", "X": "Axial", "Y": "Horizontal", "Z": "Vertical"})
+
 
 # %% Calcular o RMS de cada um
 dyna1_data.at[0, 'RMS'] = rms(dyna1_data['Vertical'].to_numpy())
 dyna2_data.at[0, 'RMS'] = rms(dyna2_data['Vertical'].to_numpy())
 dyna3_data.at[0, 'RMS'] = rms(dyna3_data['Vertical'].to_numpy())
 dyna4_data.at[0, 'RMS'] = rms(dyna4_data['Vertical'].to_numpy())
-acc_data.at[0, 'RMS'] = rms(acc_data['Z'].to_numpy())
+acc_data.at[0, 'RMS']   = rms(acc_data['Vertical'].to_numpy())
 
 
 # %% Suavização do Plot e Pré processamento
@@ -75,21 +110,20 @@ dyna1_data['Vertical_filtrado'] = sc.signal.filtfilt(b, a, dyna1_data['Vertical'
 dyna2_data['Vertical_filtrado'] = sc.signal.filtfilt(b, a, dyna2_data['Vertical'])
 dyna3_data['Vertical_filtrado'] = sc.signal.filtfilt(b, a, dyna3_data['Vertical'])
 dyna4_data['Vertical_filtrado'] = sc.signal.filtfilt(b, a, dyna4_data['Vertical'])
-#acc_data['Z_filtrado']          = sc.signal.filtfilt(b, a, acc_data['Z'])
+acc_data['Vertical_filtrado']   = sc.signal.filtfilt(b, a, acc_data['Vertical'])
 
 # Diferenciação dos Sinais
 dyna1_data['Sinal'] = 'D1'
 dyna2_data['Sinal'] = 'D2'
 dyna3_data['Sinal'] = 'D3'
 dyna4_data['Sinal'] = 'D4'
-#acc_data['Sinal']   = 'Acc'
+acc_data['Sinal']   = 'Acc'
 
 # Junção de todos os sinais em um DataFrame só
-dynaAll_data = pd.concat([dyna1_data, dyna2_data, dyna3_data, dyna4_data], ignore_index=True)
-
+dynaAll_data = pd.concat([dyna1_data, dyna2_data, dyna3_data, dyna4_data, acc_data], ignore_index=True)
 
 # %% Plottar Cada Dynalogger no tempo (CÓDIGO TEMPORÁRIO)
-fig = px.line(dynaAll_data, x='Time (s)', y="Vertical_filtrado", color="Sinal", title="Histórico temporal tudo")
+fig = px.line(dynaAll_data, x='Time (s)', y="Vertical_filtrado", color="Sinal", title="Histórico temporal")
 
 # Formatação do gráfico
 fig.update_layout(
@@ -118,39 +152,17 @@ del(normal_cutoff)
 del(nyq)
 del(order)
 
-
 # %% FFT
-signal = dyna1_data['Vertical'].values
-fft_esp = np.fft.fft(signal)
+fft_dyna1_freq, fft_dyna1_mag, fft_dyna1_espec = fft_minha(dyna1_data)
 
-# 1. Sampling Rate ()
-sampling_rate = 1 / (dyna1_data['Time (s)'][1] - dyna1_data['Time (s)'][0])
+fft_dyna1_df = pd.DataFrame({'Freqs': fft_dyna1_freq, 'Mag': fft_dyna1_mag })
 
-freqs = np.fft.fftfreq(len(signal), d=1/sampling_rate)
-
-# Escalamento
-tamanho_metade = len(dyna1_data['Time (s)']) / 2
-fft_esp_escalada = []
-for i in range(0, len(fft_esp)):
-    fft_esp_escalada.append(fft_esp[i] / tamanho_metade ) 
-
-
-fft_magnitude = np.abs(fft_esp_escalada[:len(fft_esp_escalada)//2])
-fft_magnitude = fft_magnitude[1:]
-
-
-freqs = freqs[:len(freqs)//2]
-freqs = freqs[1:]
-
-fft_dataframe = pd.DataFrame({'X':freqs, 'Y': fft_magnitude})
-
-fig_fft= px.line(fft_dataframe, x='X', y='Y', title="FFT do Dyna 1", log_y=True)
+fig_fft= px.line(fft_dyna1_df, x='Freqs', y='Mag', title="FFT", log_y=True)
 fig_fft.show(renderer='browser')
 
 
-
 # %% Plot Nivel de Vibração
-dyna1_nv = nv(fft_magnitude)
+dyna1_nv = nv(fft_dataframe['fft_magnitude'])
 
 NVporFreq = pd.DataFrame({'Freqs': freqs, 'NV': dyna1_nv })
 
