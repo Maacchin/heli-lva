@@ -1,5 +1,7 @@
 # Comparação de Medições Acelerometro e dynaloggers
 
+# Limpeza e Refatoração
+
 # %% Bibliotecas
 import os
 import pandas as pd
