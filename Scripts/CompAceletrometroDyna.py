@@ -37,8 +37,9 @@ def fft_minha(input_data):
     signal = input_data['Vertical'].values
     fft_esc = np.fft.fft(signal)
     
-    # Sampling rate
-    sampling_rate = 1 /  (input_data['Time (s)'][1] - input_data['Time (s)'][0])
+    # Sampling rate (Algo de errado aqui, testando)
+    #sampling_rate = 1 /  (input_data['Time (s)'][1] - input_data['Time (s)'][0])
+    sampling_rate = 6400
     
     # Frequências
     freqs = np.fft.fftfreq(len(signal), d=1/sampling_rate)
@@ -125,7 +126,7 @@ dynaAll_data = pd.concat([dyna1_data, dyna2_data, dyna3_data, dyna4_data, acc_da
 
 # %% Histórico Temporal de todos os dynaloggers e acelerômetro
 fig = px.line(dynaAll_data, x='Time (s)', y="Vertical_filtrado", color="Sinal", title="Histórico temporal")
-fig_sem_filtro = px.line(dynaAll_data, x='Time (s)', y="Vertical", color="Sinal", title="Histórico temporal")
+fig_sem_filtro = px.line(dynaAll_data, x='Time (s)', y="Vertical", color="Sinal", title="Histórico temporal Não Filtrado")
 
 # Formatação do gráfico
 fig.update_layout(
@@ -149,13 +150,18 @@ del(a)
 del(b)
 del(cutoff_freq)
 del(fig)
+del(fig_sem_filtro)
 del(figure_name)
 del(fs)
 del(normal_cutoff)
 del(nyq)
 del(order)
+del(dynaAll_data)
 
 # %% FFT
+
+# Tentar construir função que constroi esses dataframes automaticamente depois
+
 fft_dyna1_freq, fft_dyna1_mag, fft_dyna1_espec = fft_minha(dyna1_data)
 fft_dyna2_freq, fft_dyna2_mag, fft_dyna2_espec = fft_minha(dyna2_data)
 fft_dyna3_freq, fft_dyna3_mag, fft_dyna3_espec = fft_minha(dyna3_data)
@@ -183,6 +189,9 @@ fig_fft.show(renderer='browser')
 
 
 # %% Plot Nivel de Vibração
+
+# Tentar construir função que constroi esses dataframes automaticamente depois
+
 dyna1_nv = nv(fft_dyna1_mag)
 dyna2_nv = nv(fft_dyna2_mag)
 dyna3_nv = nv(fft_dyna3_mag)
@@ -212,12 +221,88 @@ figure_name = figure_name.strftime("Plot(NV) %d-%m-%Y %Hh-%Mm-%Ss")
 fig_vibr.write_html(f"Plots\{figure_name}.html")
 fig_vibr.write_image(f"Plots\{figure_name}.png")
 
+# %% Limpeza
+del(dyna1_nv)
+del(dyna2_nv)
+del(dyna3_nv)
+del(dyna4_nv)
+del(acc_nv)
+
+del(fft_dyna1_df)
+del(fft_dyna2_df)
+del(fft_dyna3_df)
+del(fft_dyna4_df)
+del(fft_acc_df)
+
+del(fft_dyna1_mag)
+del(fft_dyna2_mag)
+del(fft_dyna3_mag)
+del(fft_dyna4_mag)
+del(fft_acc_mag)
+
+
+del(fft_dyna1_freq)
+del(fft_dyna2_freq)
+del(fft_dyna3_freq)
+del(fft_dyna4_freq)
+del(fft_acc_freq)
+
+del(fft_dyna1_espec)
+del(fft_dyna2_espec)
+del(fft_dyna3_espec)
+del(fft_dyna4_espec)
+del(fft_acc_espec)
+
+del(fig_fft)
+del(fig_vibr)
+del(figure_name)
+
 # %% Densidade Espectral Ruido Branco (PSD)
 # Usar welch com scipy
+
+fs = 6400
+f, pxx = sc.signal.welch(dyna1_data['Vertical'], fs)
+
+dyna1_data['PSD_Freqs'] = pd.Series(f)
+dyna1_data['PSD_Pxx'] = pd.Series(pxx)
+
+fig_psd = px.line(dyna1_data, x="PSD_Freqs", y="PSD_Pxx")
+fig_psd.show(rednderer='browser')
+
+
 
 # %% Densidade Espectral dos Dynaloggers e Accelerometro
 
 # %% Plottar a Desnsidade Espectral
 
+import numpy as np
+import pandas as pd
+import scipy.signal as signal
+import plotly.graph_objects as go
+
+# Generate a sample signal (replace with your own vibration data)
+fs = 1000  # Sampling frequency (samples per second)
+t = np.arange(0, 10, 1/fs)  # Time vector (10 seconds)
+# Example: signal with a 50 Hz component and some noise
+vibration_signal = 0.5 * np.sin(2 * np.pi * 50 * t) + np.random.randn(len(t))
+
+# Compute the Power Spectral Density (PSD) using the Welch method
+f, Pxx = signal.welch(vibration_signal, fs, nperseg=1024)
+
+
+
+# Plot the PSD using Plotly
+fig = go.Figure()
+
+# Plot the PSD
+fig.add_trace(go.Scatter(x=f, y=Pxx, mode='lines', name='PSD'))
+fig.update_layout(
+    title="Power Spectral Density (PSD) via Welch's Method",
+    xaxis_title="Frequency (Hz)",
+    yaxis_title="Power Spectral Density (dB/Hz)",
+    template="plotly_dark"
+)
+
+fig.show(renderer='browser')
 
 
