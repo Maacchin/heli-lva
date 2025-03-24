@@ -18,33 +18,19 @@ from datetime import datetime
 pd.set_option('display.max_columns', None) 
 
 # %% Funções
+
 def rms(array):
     return(np.sqrt(np.mean(array**2)))
 
-
-def nv(fft_magnitude):
-    nv_vibração = []
-    
-    fft_magnitude_ms = fft_magnitude * 10
-    valor_ref = pow(10, -5)
-    
-    for i in range(0, len(fft_magnitude_ms)):
-       a = fft_magnitude_ms[i] / valor_ref
-       nv_vibração.append(20 * np.log10(a))
-                       
-    return nv_vibração
-
-
-def fft_minha(input_data):
+def fft_minha(input_data, nfft):
     signal = input_data['Vertical'].values
-    fft_esc = np.fft.fft(signal)
+    fft_esc = np.fft.fft(signal, nfft)
     
     # Sampling rate (Algo de errado aqui, testando)
-    #sampling_rate = 1 /  (input_data['Time (s)'][1] - input_data['Time (s)'][0])
-    sampling_rate = 6400
+    sampling_rate = 1 /  (input_data['Time (s)'][1] - input_data['Time (s)'][0])
     
     # Frequências
-    freqs = np.fft.fftfreq(len(signal), d=1/sampling_rate)
+    freqs = np.fft.fftfreq(nfft , d=1/sampling_rate)
     
     # Escalamento
     tamanho_metade = len(input_data['Time (s)']) //2
@@ -60,8 +46,25 @@ def fft_minha(input_data):
     freqs = freqs[:len(freqs)//2]
     freqs = freqs[1:]
     
-    #fft_dataframe = pd.DataFrame({'X':freqs, 'Y': fft_magnitude})
-    return freqs, fft_magnitude, fft_esc_escalado
+    # Retorna o dataframe montado
+    fft_df = pd.DataFrame({'Freqs':freqs, 'Mag': fft_magnitude})
+    return fft_df
+
+
+def nv(fft_magnitude):
+    nv_vibração = []
+    
+    fft_magnitude_ms = fft_magnitude * 10
+    valor_ref = pow(10, -5)
+    
+    for i in range(0, len(fft_magnitude_ms)):
+       a = fft_magnitude_ms[i] / valor_ref
+       nv_vibração.append(20 * np.log10(a))
+                       
+    return nv_vibração
+
+
+
 
 # %% Mudar para o CWD (Current Working directory) correto
 path = r"C:\Users\MartinR\Desktop\Projetos\heli-lva\Scripts"
@@ -70,6 +73,19 @@ os.chdir(path)
 os.listdir()
 
 # %% Carregar informação dos Dynaloggers e Acelerometro
+
+def read_data(path):
+    files = os.listdir(f"{path}/Medições")
+
+# Loop through filenames and check if the keyword is in each filename
+    for file in files:
+        if "waveform".upper() in file:
+            print(f"Found waveform in: {file}")
+        if "acc".upper() in file:
+            print(f"Found acc in: {file}")
+        
+    #%%
+        
 dyna1_data = pd.read_csv('Medições/waveform_Pedal_090325-1343.csv', sep=';')
 dyna2_data = pd.read_csv('Medições/waveform_Direito_090325-1420.csv', sep=';')
 dyna3_data = pd.read_csv('Medições/waveform_Motor_090325-1426.csv', sep=';')
@@ -164,17 +180,19 @@ del(dynaAll_data)
 
 # Tentar construir função que constroi esses dataframes automaticamente depois
 
-fft_dyna1_freq, fft_dyna1_mag, fft_dyna1_espec = fft_minha(dyna1_data)
-fft_dyna2_freq, fft_dyna2_mag, fft_dyna2_espec = fft_minha(dyna2_data)
-fft_dyna3_freq, fft_dyna3_mag, fft_dyna3_espec = fft_minha(dyna3_data)
-fft_dyna4_freq, fft_dyna4_mag, fft_dyna4_espec = fft_minha(dyna4_data)
-fft_acc_freq, fft_acc_mag, fft_acc_espec = fft_minha(acc_data)
+nfft = 50
 
-fft_dyna1_df = pd.DataFrame({'Freqs': fft_dyna1_freq, 'Mag': fft_dyna1_mag })
-fft_dyna2_df = pd.DataFrame({'Freqs': fft_dyna2_freq, 'Mag': fft_dyna2_mag })
-fft_dyna3_df = pd.DataFrame({'Freqs': fft_dyna3_freq, 'Mag': fft_dyna3_mag })
-fft_dyna4_df = pd.DataFrame({'Freqs': fft_dyna4_freq, 'Mag': fft_dyna4_mag })
-fft_acc_df   = pd.DataFrame({'Freqs': fft_acc_freq, 'Mag': fft_acc_mag })
+fft_dyna1_df = fft_minha(dyna1_data, nfft)
+fft_dyna2_df = fft_minha(dyna2_data, nfft)
+fft_dyna3_df = fft_minha(dyna3_data, nfft)
+fft_dyna4_df = fft_minha(dyna4_data, nfft)
+fft_acc_df = fft_minha(acc_data, nfft)
+
+#fft_dyna1_df = pd.DataFrame({'Freqs': fft_dyna1_freq, 'Mag': fft_dyna1_mag })
+#fft_dyna2_df = pd.DataFrame({'Freqs': fft_dyna2_freq, 'Mag': fft_dyna2_mag })
+#fft_dyna3_df = pd.DataFrame({'Freqs': fft_dyna3_freq, 'Mag': fft_dyna3_mag })
+##fft_dyna4_df = pd.DataFrame({'Freqs': fft_dyna4_freq, 'Mag': fft_dyna4_mag })
+#fft_acc_df   = pd.DataFrame({'Freqs': fft_acc_freq, 'Mag': fft_acc_mag })
 
 # Diferenciação dos Sinais
 fft_dyna1_df['Sinal'] = 'D1'
@@ -194,17 +212,17 @@ fig_fft.show(renderer='browser')
 
 # Tentar construir função que constroi esses dataframes automaticamente depois
 
-dyna1_nv = nv(fft_dyna1_mag)
-dyna2_nv = nv(fft_dyna2_mag)
-dyna3_nv = nv(fft_dyna3_mag)
-dyna4_nv = nv(fft_dyna4_mag)
-acc_nv = nv(fft_acc_mag)
+dyna1_nv = nv(fft_dyna1_df['Mag'])
+dyna2_nv = nv(fft_dyna2_df['Mag'])
+dyna3_nv = nv(fft_dyna3_df['Mag'])
+dyna4_nv = nv(fft_dyna4_df['Mag'])
+acc_nv = nv(fft_acc_df['Mag'])
 
-NVporFreq_dyna1 = pd.DataFrame({'Freqs': fft_dyna1_freq, 'NV': dyna1_nv })
-NVporFreq_dyna2 = pd.DataFrame({'Freqs': fft_dyna2_freq, 'NV': dyna2_nv })
-NVporFreq_dyna3 = pd.DataFrame({'Freqs': fft_dyna3_freq, 'NV': dyna3_nv })
-NVporFreq_dyna4 = pd.DataFrame({'Freqs': fft_dyna4_freq, 'NV': dyna4_nv })
-NVporFreq_acc   = pd.DataFrame({'Freqs': fft_acc_freq,   'NV': acc_nv })
+NVporFreq_dyna1 = pd.DataFrame({'Freqs': fft_dyna1_df['Freqs'], 'NV': dyna1_nv })
+NVporFreq_dyna2 = pd.DataFrame({'Freqs': fft_dyna2_df['Freqs'], 'NV': dyna2_nv })
+NVporFreq_dyna3 = pd.DataFrame({'Freqs': fft_dyna3_df['Freqs'], 'NV': dyna3_nv })
+NVporFreq_dyna4 = pd.DataFrame({'Freqs': fft_dyna4_df['Freqs'], 'NV': dyna4_nv })
+NVporFreq_acc   = pd.DataFrame({'Freqs': fft_acc_df['Freqs'],   'NV': acc_nv })
 
 # Diferenciação dos Sinais
 NVporFreq_dyna1['Sinal'] = 'D1'
@@ -223,41 +241,7 @@ figure_name = figure_name.strftime("Plot(NV) %d-%m-%Y %Hh-%Mm-%Ss")
 fig_vibr.write_html(f"Plots\{figure_name}.html")
 fig_vibr.write_image(f"Plots\{figure_name}.png")
 
-# %% Limpeza
-del(dyna1_nv)
-del(dyna2_nv)
-del(dyna3_nv)
-del(dyna4_nv)
-del(acc_nv)
 
-del(fft_dyna1_df)
-del(fft_dyna2_df)
-del(fft_dyna3_df)
-del(fft_dyna4_df)
-del(fft_acc_df)
-
-del(fft_dyna1_mag)
-del(fft_dyna2_mag)
-del(fft_dyna3_mag)
-del(fft_dyna4_mag)
-del(fft_acc_mag)
-
-
-del(fft_dyna1_freq)
-del(fft_dyna2_freq)
-del(fft_dyna3_freq)
-del(fft_dyna4_freq)
-del(fft_acc_freq)
-
-del(fft_dyna1_espec)
-del(fft_dyna2_espec)
-del(fft_dyna3_espec)
-del(fft_dyna4_espec)
-del(fft_acc_espec)
-
-del(fig_fft)
-del(fig_vibr)
-del(figure_name)
 
 # %% Densidade Espectral Ruido Branco (PSD)
 # Usar welch com scipy
@@ -283,13 +267,13 @@ import scipy.signal as signal
 import plotly.graph_objects as go
 
 # Generate a sample signal (replace with your own vibration data)
-fs = 1000  # Sampling frequency (samples per second)
-t = np.arange(0, 10, 1/fs)  # Time vector (10 seconds)
+fs = 6400  # Sampling frequency (samples per second)
+#t = np.arange(0, 10, 1/fs)  # Time vector (10 seconds)
 # Example: signal with a 50 Hz component and some noise
-vibration_signal = 0.5 * np.sin(2 * np.pi * 50 * t) + np.random.randn(len(t))
+#vibration_signal = 0.5 * np.sin(2 * np.pi * 50 * t) + np.random.randn(len(t))
 
 # Compute the Power Spectral Density (PSD) using the Welch method
-f, Pxx = signal.welch(vibration_signal, fs, nperseg=1024)
+f, Pxx = signal.welch(dyna1_data['Vertical'], fs, nperseg=1024)
 
 
 
@@ -301,8 +285,7 @@ fig.add_trace(go.Scatter(x=f, y=Pxx, mode='lines', name='PSD'))
 fig.update_layout(
     title="Power Spectral Density (PSD) via Welch's Method",
     xaxis_title="Frequency (Hz)",
-    yaxis_title="Power Spectral Density (dB/Hz)",
-    template="plotly_dark"
+    yaxis_title="Power Spectral Density (dB/Hz)"
 )
 
 fig.show(renderer='browser')
