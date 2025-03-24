@@ -44,7 +44,7 @@ def fft_minha(input_data):
     freqs = np.fft.fftfreq(len(signal), d=1/sampling_rate)
     
     # Escalamento
-    tamanho_metade = len(input_data['Time (s)']) /2
+    tamanho_metade = len(input_data['Time (s)']) //2
     fft_esc_escalado = []
     for i in range(0, len(fft_esc)):
         fft_esc_escalado.append(fft_esc[i] / tamanho_metade)
@@ -61,8 +61,8 @@ def fft_minha(input_data):
     return freqs, fft_magnitude, fft_esc_escalado
 
 # %% Mudar para o CWD (Current Working directory) correto
-#path = r"C:\Users\MartinR\Desktop\Projetos\heli-lva\Scripts"
-path = r"/home/martinaise/Projetos/heli-lva/Scripts"
+path = r"C:\Users\MartinR\Desktop\Projetos\heli-lva\Scripts"
+#path = r"/home/martinaise/Projetos/heli-lva/Scripts"
 os.chdir(path)
 os.listdir()
 
@@ -72,17 +72,17 @@ dyna2_data = pd.read_csv('Medições/waveform_Direito_090325-1420.csv', sep=';')
 dyna3_data = pd.read_csv('Medições/waveform_Motor_090325-1426.csv', sep=';')
 dyna4_data = pd.read_csv('Medições/waveform_Esquerdo_090325-1647.csv', sep=';')
 
-acc_data = pd.read_csv('Medições/accelerometer_356A45.csv', sep=';', header=0)
+acc_data = pd.read_csv('Medições/Accelerometer_wo_excitation_Test1.csv', sep=';', header=0)
 # Limpando colunas vazias
 acc_data = acc_data.loc[:, ~acc_data.columns.str.contains('^Unnamed')]
 # Removendo espaço em branco dos headers
 acc_data = acc_data.rename(columns=lambda x: x.strip())
 
 # Removendo medições extras
-acc_data = acc_data.drop(['X1', 'Y1', 'Z1'], axis='columns')
+#acc_data = acc_data.drop(['X1', 'Y1', 'Z1'], axis='columns')
 
 # Colocando no mesmo formato dos dynaloggers
-acc_data = acc_data.rename(columns={"Time": "Time (s)", "X": "Axial", "Y": "Horizontal", "Z": "Vertical"})
+#acc_data = acc_data.rename(columns={"Time": "Time (s)", "X": "Axial", "Y": "Horizontal", "Z": "Vertical"})
 
 
 # %% Calcular o RMS de cada um
@@ -112,6 +112,7 @@ dyna3_data['Vertical_filtrado'] = sc.signal.filtfilt(b, a, dyna3_data['Vertical'
 dyna4_data['Vertical_filtrado'] = sc.signal.filtfilt(b, a, dyna4_data['Vertical'])
 acc_data['Vertical_filtrado']   = sc.signal.filtfilt(b, a, acc_data['Vertical'])
 
+
 # Diferenciação dos Sinais
 dyna1_data['Sinal'] = 'D1'
 dyna2_data['Sinal'] = 'D2'
@@ -122,8 +123,9 @@ acc_data['Sinal']   = 'Acc'
 # Junção de todos os sinais em um DataFrame só
 dynaAll_data = pd.concat([dyna1_data, dyna2_data, dyna3_data, dyna4_data, acc_data], ignore_index=True)
 
-# %% Plottar Cada Dynalogger no tempo (CÓDIGO TEMPORÁRIO)
+# %% Histórico Temporal de todos os dynaloggers e acelerômetro
 fig = px.line(dynaAll_data, x='Time (s)', y="Vertical_filtrado", color="Sinal", title="Histórico temporal")
+fig_sem_filtro = px.line(dynaAll_data, x='Time (s)', y="Vertical", color="Sinal", title="Histórico temporal")
 
 # Formatação do gráfico
 fig.update_layout(
@@ -133,6 +135,7 @@ fig.update_layout(
 
 # Display
 fig.show(renderer='browser')
+fig_sem_filtro.show(renderer='browser')
 
 # Salvar
 figure_name = datetime.now()
@@ -141,7 +144,7 @@ fig.write_html(f"Plots\{figure_name}.html")
 fig.write_image(f"Plots\{figure_name}.png")
 
 
-# %% Limpeza
+# %% Limpeza de variáveis
 del(a)
 del(b)
 del(cutoff_freq)
@@ -154,20 +157,54 @@ del(order)
 
 # %% FFT
 fft_dyna1_freq, fft_dyna1_mag, fft_dyna1_espec = fft_minha(dyna1_data)
+fft_dyna2_freq, fft_dyna2_mag, fft_dyna2_espec = fft_minha(dyna2_data)
+fft_dyna3_freq, fft_dyna3_mag, fft_dyna3_espec = fft_minha(dyna3_data)
+fft_dyna4_freq, fft_dyna4_mag, fft_dyna4_espec = fft_minha(dyna4_data)
+fft_acc_freq, fft_acc_mag, fft_acc_espec = fft_minha(acc_data)
 
 fft_dyna1_df = pd.DataFrame({'Freqs': fft_dyna1_freq, 'Mag': fft_dyna1_mag })
+fft_dyna2_df = pd.DataFrame({'Freqs': fft_dyna2_freq, 'Mag': fft_dyna2_mag })
+fft_dyna3_df = pd.DataFrame({'Freqs': fft_dyna3_freq, 'Mag': fft_dyna3_mag })
+fft_dyna4_df = pd.DataFrame({'Freqs': fft_dyna4_freq, 'Mag': fft_dyna4_mag })
+fft_acc_df   = pd.DataFrame({'Freqs': fft_acc_freq, 'Mag': fft_acc_mag })
 
-fig_fft= px.line(fft_dyna1_df, x='Freqs', y='Mag', title="FFT", log_y=True)
+# Diferenciação dos Sinais
+fft_dyna1_df['Sinal'] = 'D1'
+fft_dyna2_df['Sinal'] = 'D2'
+fft_dyna3_df['Sinal'] = 'D3'
+fft_dyna4_df['Sinal'] = 'D4'
+fft_acc_df['Sinal'] = 'Acc'
+
+# Junção de todos os sinais em um DataFrame só
+fft_all_data_df = pd.concat([fft_dyna1_df, fft_dyna2_df, fft_dyna3_df, fft_dyna4_df, fft_acc_df], ignore_index=True)
+
+fig_fft= px.line(fft_all_data_df, x='Freqs', y='Mag', title="FFT", color="Sinal", log_y=True)
 fig_fft.show(renderer='browser')
 
 
 # %% Plot Nivel de Vibração
-dyna1_nv = nv(fft_dataframe['fft_magnitude'])
+dyna1_nv = nv(fft_dyna1_mag)
+dyna2_nv = nv(fft_dyna2_mag)
+dyna3_nv = nv(fft_dyna3_mag)
+dyna4_nv = nv(fft_dyna4_mag)
+acc_nv = nv(fft_acc_mag)
 
-NVporFreq = pd.DataFrame({'Freqs': freqs, 'NV': dyna1_nv })
+NVporFreq_dyna1 = pd.DataFrame({'Freqs': fft_dyna1_freq, 'NV': dyna1_nv })
+NVporFreq_dyna2 = pd.DataFrame({'Freqs': fft_dyna2_freq, 'NV': dyna2_nv })
+NVporFreq_dyna3 = pd.DataFrame({'Freqs': fft_dyna3_freq, 'NV': dyna3_nv })
+NVporFreq_dyna4 = pd.DataFrame({'Freqs': fft_dyna4_freq, 'NV': dyna4_nv })
+NVporFreq_acc   = pd.DataFrame({'Freqs': fft_acc_freq,   'NV': acc_nv })
 
-fig_vibr = px.line(NVporFreq, x='Freqs', y='NV', title='NV Dyna1', log_x=True)
+# Diferenciação dos Sinais
+NVporFreq_dyna1['Sinal'] = 'D1'
+NVporFreq_dyna2['Sinal'] = 'D2'
+NVporFreq_dyna3['Sinal'] = 'D3'
+NVporFreq_dyna4['Sinal'] = 'D4'
+NVporFreq_acc['Sinal']   = 'Acc'
 
+NVporFreq_all = pd.concat([NVporFreq_dyna1, NVporFreq_dyna2, NVporFreq_dyna3, NVporFreq_dyna4, NVporFreq_acc ])
+
+fig_vibr = px.line(NVporFreq_all, x='Freqs', y='NV', title='Nivel de Vibração', color="Sinal" , log_x=True)
 fig_vibr.show(renderer='browser')
 
 figure_name = datetime.now()
