@@ -12,18 +12,151 @@ import plotly.express as px
 from datetime import datetime
 
 
-# %% Opções do Pandas
-
-# Para poder ver todas as colunas do DataFrame
-pd.set_option('display.max_columns', None) 
-
 # %% Funções
+def read_data(path, name=None):
+    '''
+    Função para ler automaticamente os dados .csv de uma pasta de medições
+    onde olha pelos nomes waveform para medições dynalogger e para os nomes
+    acc para medições sQuadriga
+
+    Parameters
+    ----------
+    path : string
+        Caminho da pasta de medições.
+
+    Returns
+    -------
+    dataframes : Dict
+        Retorna dicionário com todos DataFrames.
+
+    '''    
+    
+    # Lê os arquivos de um diretório
+    files = os.listdir(f"{path}/Medições")
+    
+    # Contadores para nome dinâmico
+    dyna_counter = 1
+    acc_counter = 1
+    
+    # Dicionário vazio para segurar os DataFrames
+    dataframes = {}
+    
+    # Loopar pelos nomes e verificar se contem 'waveform' e 'acc'
+    for file in files:  
+        if "waveform" in file.lower():
+            print(f"Found waveform in: {file}")
+            
+            # Ler arquivo com CSV usando ; como separador
+            file_path = os.path.join(f"{path}/Medições", file)
+            df = pd.read_csv(file_path, sep = ';')
+            
+            # Limpeza de espaços
+            df.rename(columns=lambda x: x.strip(), inplace=True)
+            
+            var_name = f"dyna{dyna_counter}_data"
+            dataframes[var_name] = df
+            
+            dyna_counter += 1
+            
+        elif "acc" in file.lower():
+            print(f"Found acc in: {file}")
+            
+            # Ler arquivo com CSV usando ; como separador
+            file_path = os.path.join(f"{path}/Medições", file)
+            df = pd.read_csv(file_path, sep = ';')
+            
+            # Limpeza de espaços
+            df.rename(columns=lambda x: x.strip(), inplace=True)
+            
+            var_name = f"acc{acc_counter}_data"
+            dataframes[var_name] = df
+            
+            acc_counter += 1
+    
+    return dataframes
+
+def fig_name(tipo=None):
+    
+    figure_name = datetime.now()    
+        
+    match tipo:
+        case "ht":
+            figure_name = figure_name.strftime("Plot(HT) %d-%m-%Y %Hh-%Mm-%Ss")    
+        case "nv":
+            figure_name = figure_name.strftime("Plot(NV) %d-%m-%Y %Hh-%Mm-%Ss")
+        case "fft":
+            figure_name = figure_name.strftime("Plot(FFT) %d-%m-%Y %Hh-%Mm-%Ss")
+        case "psd":
+            figure_name = figure_name.strftime("Plot(PSD) %d-%m-%Y %Hh-%Mm-%Ss")
+        case _:
+            figure_name = figure_name.strftime("Plot %d-%m-%Y %Hh-%Mm-%Ss")
+    
+    return figure_name
 
 def rms(array):
+    '''
+    Cálculo simples do Root Mean Square usando numpy
+    '''
     return(np.sqrt(np.mean(array**2)))
 
-def fft_minha(input_data, nfft):
-    signal = input_data['Vertical'].values
+def filtragem_hanning(df, eixo='Vertical'):
+    
+    # Incorreto (WIP)
+    
+    window = np.hanning(len(df[eixo]))
+    
+    df[f"{eixo}_Filtrado"] = df[eixo] * window
+    
+    
+def filtragem_passabaixa(df, eixo='Vertical'):
+    # Parametros do filtro (Lowpass)
+    cutoff_freq = 300 # Frequência de corte em Hz
+    fs = 1000 # Taxa de amostragem em Hz
+    nyq = 0.5 * fs
+    order = 4 # Ordem do filtro
+    normal_cutoff = cutoff_freq / nyq
+    b,a = sc.signal.butter(order, normal_cutoff, btype='lowpass')
+    
+    df[f"{eixo}_Filtrado"] = sc.signal.filtfilt(b, a, df[eixo])
+
+    
+
+def plot(df, salvar=False):
+    '''
+    Faz o Plot do Histórico temporal e 
+    opcionalmente salva a figura na pasta /Plots, a função espera
+    um DataFrame com as colunas "Time (s)" e "Vertical"
+    '''
+    
+    fig = px.line(df, x='Freqs', y='Mags', title="FFT", color="Sinal", log_y=True)
+    fig.show(renderer='browser')
+    
+    if salvar:
+        figure_name = fig_name('fft')
+        fig.write_html(f"Plots\{figure_name}.html")
+        fig.write_image(f"Plots\{figure_name}.png")
+
+def fft_minha(input_data, nfft, eixo='Vertical'):
+    '''
+
+    Parameters
+    ----------
+    input_data : DataFrame
+        DataFrame que possui os valores para ser feito a FFT.
+    nfft : int
+        Número para discretização da FFT. Define a quantidade de pontos
+        a serem tomados no cálculo
+    eixo : str
+        Eixo a ser feito a fft, default = 'Vertical'
+
+    Returns
+    -------
+    fft_df : DataFrame
+        Retorna um DataFrame com as colunas de Frequências e Magnitudes.
+
+    '''
+    
+    signal = input_data[eixo].values
     fft_esc = np.fft.fft(signal, nfft)
     
     # Sampling rate (Algo de errado aqui, testando)
@@ -50,8 +183,22 @@ def fft_minha(input_data, nfft):
     fft_df = pd.DataFrame({'Freqs':freqs, 'Mag': fft_magnitude})
     return fft_df
 
+def plot_fft(df, salvar=False):
+    '''
+    Faz o plot da FFT e opcionalmente salva a figura na pasta /Plots, a função espera
+    um DataFrame com as colunas "Freqs" e "Mags"
+    '''
+    
+    fig = px.line(df, x='Freqs', y='Mags', title="FFT", color="Sinal", log_y=True)
+    fig.show(renderer='browser')
+    
+    if salvar:
+        figure_name = fig_name('fft')
+        fig.write_html(f"Plots\{figure_name}.html")
+        fig.write_image(f"Plots\{figure_name}.png")
 
-def nv(fft_magnitude):
+
+def nv_minha(fft_magnitude):
     nv_vibração = []
     
     fft_magnitude_ms = fft_magnitude * 10
@@ -63,8 +210,28 @@ def nv(fft_magnitude):
                        
     return nv_vibração
 
+def nv_plot(df, salvar=False):
+    '''
+    Faz o plot do Nível de Vibração e opcionalmente salva a figura 
+    na pasta /Plots, a função espera um DataFrame com as colunas "Freqs" e "NV"
 
+    '''
+    fig = px.line(df, x='Freqs', y='NV', title="NV", color="Sinal", log_y=True)
+    fig.show(renderer='browser')
+    
+    if salvar:
+        figure_name = fig_name('nv')
+        fig.write_html(f"Plots\{figure_name}.html")
+        fig.write_image(f"Plots\{figure_name}.png")
+    
+def psd_minha():
+    pass
 
+def psd_plot():
+    pass
+# %% Opções do Pandas
+# Para poder ver todas as colunas do DataFrame
+pd.set_option('display.max_columns', None) 
 
 # %% Mudar para o CWD (Current Working directory) correto
 path = r"C:\Users\MartinR\Desktop\Projetos\heli-lva\Scripts"
@@ -72,37 +239,21 @@ path = r"C:\Users\MartinR\Desktop\Projetos\heli-lva\Scripts"
 os.chdir(path)
 os.listdir()
 
+
+
 # %% Carregar informação dos Dynaloggers e Acelerometro
 
-def read_data(path):
-    files = os.listdir(f"{path}/Medições")
+dfs = read_data(path)
 
-# Loop through filenames and check if the keyword is in each filename
-    for file in files:
-        if "waveform".upper() in file:
-            print(f"Found waveform in: {file}")
-        if "acc".upper() in file:
-            print(f"Found acc in: {file}")
-        
-    #%%
-        
-dyna1_data = pd.read_csv('Medições/waveform_Pedal_090325-1343.csv', sep=';')
-dyna2_data = pd.read_csv('Medições/waveform_Direito_090325-1420.csv', sep=';')
-dyna3_data = pd.read_csv('Medições/waveform_Motor_090325-1426.csv', sep=';')
-dyna4_data = pd.read_csv('Medições/waveform_Esquerdo_090325-1647.csv', sep=';')
+# Pegamos o que queremos das medições
+dyna1_data = dfs.get('dyna1_data')
+dyna2_data = dfs.get('dyna2_data')
+dyna3_data = dfs.get('dyna3_data')
+dyna4_data = dfs.get('dyna4_data')
+acc_data   = dfs.get('acc2_data')
 
-acc_data = pd.read_csv('Medições/Accelerometer_wo_excitation_Test1.csv', sep=';', header=0)
-# Limpando colunas vazias
-acc_data = acc_data.loc[:, ~acc_data.columns.str.contains('^Unnamed')]
-# Removendo espaço em branco dos headers
-acc_data = acc_data.rename(columns=lambda x: x.strip())
-
-# Removendo medições extras
-#acc_data = acc_data.drop(['X1', 'Y1', 'Z1'], axis='columns')
-
-# Colocando no mesmo formato dos dynaloggers
-#acc_data = acc_data.rename(columns={"Time": "Time (s)", "X": "Axial", "Y": "Horizontal", "Z": "Vertical"})
-
+# Joga o resto fora
+del(dfs)
 
 # %% Calcular o RMS de cada um
 dyna1_data.at[0, 'RMS'] = rms(dyna1_data['Vertical'].to_numpy())
@@ -114,22 +265,18 @@ acc_data.at[0, 'RMS']   = rms(acc_data['Vertical'].to_numpy())
 
 # %% Suavização do Plot e Pré processamento
 
-# Tentar Hamming
+#filtragem_hanning(dyna4_data)
+filtragem_passabaixa(dyna4_data)
 
-# Parametros do filtro (Lowpass)
-cutoff_freq = 100 # Frequência de corte em Hz
-fs = 1000 # Taxa de amostragem em Hz
-nyq = 0.5 * fs
-order = 4 # Ordem do filtro
-normal_cutoff = cutoff_freq / nyq
-b,a = sc.signal.butter(order, normal_cutoff, btype='lowpass')
+# %%
+fig1 = px.line(dyna4_data, x = "Time (s)", y = "Vertical")
+fig2 = px.line(dyna4_data, x="Time (s)", y= "Vertical_Filtrado")
+fig1.show(renderer='browser')
+fig2.show(renderer='browser')
 
-# Aplicação do filtro
-dyna1_data['Vertical_filtrado'] = sc.signal.filtfilt(b, a, dyna1_data['Vertical'])
-dyna2_data['Vertical_filtrado'] = sc.signal.filtfilt(b, a, dyna2_data['Vertical'])
-dyna3_data['Vertical_filtrado'] = sc.signal.filtfilt(b, a, dyna3_data['Vertical'])
-dyna4_data['Vertical_filtrado'] = sc.signal.filtfilt(b, a, dyna4_data['Vertical'])
-acc_data['Vertical_filtrado']   = sc.signal.filtfilt(b, a, acc_data['Vertical'])
+
+
+# %%
 
 
 # Diferenciação dos Sinais
@@ -163,19 +310,6 @@ fig.write_html(f"Plots\{figure_name}.html")
 fig.write_image(f"Plots\{figure_name}.png")
 
 
-# %% Limpeza de variáveis
-del(a)
-del(b)
-del(cutoff_freq)
-del(fig)
-del(fig_sem_filtro)
-del(figure_name)
-del(fs)
-del(normal_cutoff)
-del(nyq)
-del(order)
-del(dynaAll_data)
-
 # %% FFT
 
 # Tentar construir função que constroi esses dataframes automaticamente depois
@@ -204,8 +338,7 @@ fft_acc_df['Sinal'] = 'Acc'
 # Junção de todos os sinais em um DataFrame só
 fft_all_data_df = pd.concat([fft_dyna1_df, fft_dyna2_df, fft_dyna3_df, fft_dyna4_df, fft_acc_df], ignore_index=True)
 
-fig_fft= px.line(fft_all_data_df, x='Freqs', y='Mag', title="FFT", color="Sinal", log_y=True)
-fig_fft.show(renderer='browser')
+
 
 
 # %% Plot Nivel de Vibração
@@ -260,34 +393,3 @@ fig_psd.show(rednderer='browser')
 # %% Densidade Espectral dos Dynaloggers e Accelerometro
 
 # %% Plottar a Desnsidade Espectral
-
-import numpy as np
-import pandas as pd
-import scipy.signal as signal
-import plotly.graph_objects as go
-
-# Generate a sample signal (replace with your own vibration data)
-fs = 6400  # Sampling frequency (samples per second)
-#t = np.arange(0, 10, 1/fs)  # Time vector (10 seconds)
-# Example: signal with a 50 Hz component and some noise
-#vibration_signal = 0.5 * np.sin(2 * np.pi * 50 * t) + np.random.randn(len(t))
-
-# Compute the Power Spectral Density (PSD) using the Welch method
-f, Pxx = signal.welch(dyna1_data['Vertical'], fs, nperseg=1024)
-
-
-
-# Plot the PSD using Plotly
-fig = go.Figure()
-
-# Plot the PSD
-fig.add_trace(go.Scatter(x=f, y=Pxx, mode='lines', name='PSD'))
-fig.update_layout(
-    title="Power Spectral Density (PSD) via Welch's Method",
-    xaxis_title="Frequency (Hz)",
-    yaxis_title="Power Spectral Density (dB/Hz)"
-)
-
-fig.show(renderer='browser')
-
-
