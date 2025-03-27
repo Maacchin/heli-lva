@@ -13,6 +13,7 @@ from datetime import datetime
 # %% Funções
 
 def clear_df(df):
+    # Não tenho certeza se funciona
     df.rename(columns=lambda x: x.strip(), inplace=True)
 
 def rms(array):
@@ -22,6 +23,9 @@ def rms(array):
     return(np.sqrt(np.mean(array**2)))
 
 def plot(df, eixos, title, tipo, salvar=False, log_x=False, log_y=False):
+    '''
+    Função genérica para plottar dados com o plotly.express
+    '''
     fig = px.line(df, x=eixos[0], y=eixos[1], title=title, color="Sinal", 
                   log_x=log_x, log_y=log_y)
     
@@ -44,10 +48,16 @@ def plot(df, eixos, title, tipo, salvar=False, log_x=False, log_y=False):
         fig.write_image(f"Plots/{figure_name}.png")
 
 def filtragem_hanning(df, eixo='Vertical'):
+    '''
+    Função para aplicar filtragem de hanning no DataFrame
+    '''
     window = np.hanning(len(df[eixo]))
     df[f"{eixo}_Hanning"] = df[eixo] * window
     
 def filtragem_lowpass(df, eixo='Vertical'):
+    '''
+    Função para aplicar filtragem lowpass no DataFrame
+    '''
     # Parametros do filtro (Lowpass)
     cutoff_freq = 300 # Frequência de corte em Hz
     fs = 1000 # Taxa de amostragem em Hz
@@ -97,16 +107,16 @@ def nv_minha(df,fft_magnitude):
                        
     df['NV'] = pd.Series(nv_vibração)
 
-def psd_minha(df):
-    fs = 6400
-    f, pxx = sc.signal.welch(df['Vertical'], fs)
+def psd_minha(df, fs, nnft):
+    n = np.floor(len(df)/8)
+    f, pxx = sc.signal.welch(df['Vertical'], fs=fs, nperseg=n, nfft=nfft, detrend=False)
     
     df['PSD_Freqs'] = pd.Series(f)
     df['PSD_Pxx']   = pd.Series(pxx)
 
 # %% Mudar para o CWD (Current Working directory) correto
-#path = r"C:\Users\MartinR\Desktop\Projetos\heli-lva\Scripts"
-path = r"/home/martinaise/Projetos/heli-lva/Scripts/Medições"
+path = r"C:\Users\MartinR\Desktop\Projetos\heli-lva\Scripts\Medições"
+#path = r"/home/martinaise/Projetos/heli-lva/Scripts/Medições"
 os.chdir(path)
 os.listdir()
 
@@ -139,13 +149,6 @@ filtragem_lowpass(dyna3_data)
 filtragem_lowpass(dyna4_data)
 filtragem_lowpass(acc_data)
 
-# %% Diferenciação dos Sinais
-dyna1_data['Sinal'] = 'S1'
-dyna2_data['Sinal'] = 'S2'
-dyna3_data['Sinal'] = 'S3'
-dyna4_data['Sinal'] = 'S4'
-acc_data['Sinal']   = 'Acc'
-
 # %% FFT
 
 nfft = 10000
@@ -154,7 +157,6 @@ fft_minha(dyna2_data, nfft)
 fft_minha(dyna3_data, nfft)
 fft_minha(dyna4_data, nfft)
 fft_minha(acc_data, nfft)
-del(nfft)
 
 
 # %% Nivel de vibração
@@ -166,23 +168,33 @@ nv_minha(dyna4_data, dyna4_data['FFT_Mag'])
 nv_minha(acc_data, acc_data['FFT_Mag'])
 
 # %% Densidade Espectral Ruido Branco (PSD)
-psd_minha(dyna1_data)
-psd_minha(dyna2_data)
-psd_minha(dyna3_data)
-psd_minha(dyna4_data)
-psd_minha(acc_data)
+
+psd_minha(dyna1_data, 6400, nfft)
+psd_minha(dyna2_data, 5040, nfft)
+psd_minha(dyna3_data, 5040, nfft)
+psd_minha(dyna4_data, 5040, nfft)
+psd_minha(acc_data, 6000, nfft)
+
+del(nfft)
+
+# %% Diferenciação dos Sinais para plottagem
+dyna1_data['Sinal'] = 'D1'
+dyna2_data['Sinal'] = 'D2'
+dyna3_data['Sinal'] = 'D3'
+dyna4_data['Sinal'] = 'D4'
+acc_data['Sinal']   = 'Acc'
 
 # %% Junção de todos os sinais em um DataFrame só no final
-dynaAll_data = pd.concat([dyna1_data, dyna2_data, dyna3_data, dyna4_data, acc_data], ignore_index=True)
+All_data = pd.concat([dyna1_data, dyna2_data, dyna3_data, dyna4_data, acc_data], ignore_index=True)
 
 # %% Plot Histórico Temporal
-plot(dynaAll_data, ['Time (s)', 'Vertical_Lowpass'], 'Histórico Temporal', tipo='hf', salvar=True)
+plot(All_data, ['Time (s)', 'Vertical_Lowpass'], 'Histórico Temporal', tipo='hf', salvar=False)
 
 # %% Plot FFT
-plot(dynaAll_data, ['FFT_Freqs', "FFT_Mag"], "FFT", tipo='fft', salvar=True)
+plot(All_data, ['FFT_Freqs', "FFT_Mag"], "FFT", tipo='fft', salvar=False, log_x=True)
 
 # %% Plot Nivel de Vibração
-plot(dynaAll_data, ['FFT_Freqs', "NV"], "NV", tipo='nv', salvar=True)
-
+plot(All_data, ['FFT_Freqs', "NV"], "NV", tipo='nv', salvar=False, log_x=True)
 
 # %% Plottar a Desnsidade Espectral
+plot(All_data, ['PSD_Freqs', 'PSD_Pxx'], "PSD", tipo='psd', salvar=False, log_x=True, log_y=True)
